@@ -178,7 +178,7 @@ namespace ESO_Zone_Server.Protocol
                                     ZonePacket.FromMessage(stateAckMessage, zoneClient));
 
                             var userMessage = new Messages.Messages.UserMessage(zoneClient.Username, zoneClient.CurrentAppID, zoneClient.CurrentUserState);
-                            Zone.OnlineClients.Where(client => client.WatchList.Contains(zoneClient.Username))
+                            Zone.OnlineClients.Where(client => client.WatchList.Contains(zoneClient.Username, StringComparer.OrdinalIgnoreCase))
                                     .ForEach(_ => _.packetsToBeSent.Add(
                                             ZonePacket.FromMessage(userMessage, _)));
                         }
