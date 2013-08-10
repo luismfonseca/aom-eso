@@ -38,19 +38,6 @@ namespace ESO_Zone_Server
         public Log()
         {
             InitializeComponent();
-
-            // Start Message Server
-            var thread = new Thread(ASyncServer.Start);
-            thread.Start(Zone.MSG_PORT);
-
-            // Start Chat\Lobby Server
-            for (int i = 0; i < Zone.CHAT_COUNT; i++)
-            {
-                var threadChat = new Thread(ASyncServer.Start);
-                threadChat.Start(Zone.CHAT_PORT + i);
-            }
-
-            logInstance = this;
         }
 
         private static void LogMessage(string message)
@@ -77,6 +64,22 @@ namespace ESO_Zone_Server
         public static void Warning(string tag, string message)
         {
             LogMessage("[w]" + "[" + tag + "] " + message);
+        }
+
+        private void Log_Load(object sender, EventArgs e)
+        {
+            logInstance = this;
+
+            // Start Message Server
+            var thread = new Thread(ASyncServer.Start);
+            thread.Start(Zone.MSG_PORT);
+
+            // Start Chat\Lobby Server
+            for (int i = 0; i < Zone.CHAT_COUNT; i++)
+            {
+                var threadChat = new Thread(ASyncServer.Start);
+                threadChat.Start(Zone.CHAT_PORT + i);
+            }
         }
     }
 }

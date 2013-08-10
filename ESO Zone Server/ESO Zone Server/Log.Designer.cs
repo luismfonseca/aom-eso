@@ -51,6 +51,7 @@
             this.Name = "Log";
             this.Text = "ESO Zone Server Log";
             this.WindowState = System.Windows.Forms.FormWindowState.Maximized;
+            this.Load += new System.EventHandler(this.Log_Load);
             this.ResumeLayout(false);
 
         }
