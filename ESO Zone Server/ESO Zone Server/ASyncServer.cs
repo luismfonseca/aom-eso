@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
 
+using ESO_Zone_Server.Protocol;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -32,11 +33,11 @@ namespace ESO_Zone_Server
     {
         public static ManualResetEvent waitForNewConnection = new ManualResetEvent(false);
 
-        public static void Start()
+        public static void Start(object port)
         {
             IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.1.88");
             IPAddress ipAddress = ipHostInfo.AddressList[0];
-            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 28801);
+            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, (int)port);
 
             byte[] bytes = new Byte[1024];
             Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
@@ -71,6 +72,10 @@ namespace ESO_Zone_Server
 
             var client = new ASyncClient();
             client.state.socket = handler;
+            if (((IPEndPoint)handler.LocalEndPoint).Port >= Zone.CHAT_PORT)
+            {
+                client.zoneClient.IsOnLobby = true;
+            }
             Log.Inform("ASyncServer", "New connection setup. Waiting for client first message.");
             handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, 0, new AsyncCallback(ReadCallback), client);
         }

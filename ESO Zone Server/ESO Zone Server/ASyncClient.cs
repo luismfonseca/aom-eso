@@ -50,23 +50,6 @@ namespace ESO_Zone_Server
         {
             state = new ConnectionState();
             zoneClient = new ZoneClient();
-
-            zoneClient.WatchList.CollectionChanged += (sender, eventArgs) =>
-                {
-                    var newWatch = (string)eventArgs.NewItems[0];
-
-                    // TODO: Check if online
-
-                    // TODO: Send user packet
-                    /*var userMessage = new Messages.UserMessage(newWatch, ZoneClientState.AppID.AoM, ZoneClientState.UserState.OnlineAdvancedLounge);
-
-                    lock (watchPacketsToBeSent)
-                    {
-                        packetsToBeSent.Add(
-                                ZonePacket.FromMessage(userMessage, zoneClientState));
-                    }*/
-                };
-
             zoneClient.packetsToBeSent.CollectionChanged += (sender, eventArgs) =>
                 {
                     if (!zoneClient.IsProcessingOrSendingPackets)

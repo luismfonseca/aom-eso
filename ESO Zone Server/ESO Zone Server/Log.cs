@@ -16,6 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 **/
 
+using ESO_Zone_Server.Protocol;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -38,8 +39,16 @@ namespace ESO_Zone_Server
         {
             InitializeComponent();
 
+            // Start Message Server
             var thread = new Thread(ASyncServer.Start);
-            thread.Start();
+            thread.Start(Zone.MSG_PORT);
+
+            // Start Chat\Lobby Server
+            for (int i = 0; i < Zone.CHAT_COUNT; i++)
+            {
+                var threadChat = new Thread(ASyncServer.Start);
+                threadChat.Start(Zone.CHAT_PORT + i);
+            }
 
             logInstance = this;
         }

@@ -54,8 +54,9 @@ namespace ESO_Zone_Server.Protocol.Messages
 
         public enum SIGNATURE_CHAT
         {
-            ROOM_INFO = 1,
+            ROOM_CONNECT = 0,
             ROOM_ACCESSED = 11,
+            ROOM_INFO = 1,
             TALK = 7,
             TALK_RESPONSE = 8,
             //? TALK_ID = 12,

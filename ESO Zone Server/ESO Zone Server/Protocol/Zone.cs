@@ -23,12 +23,28 @@ using System.Text;
 using System.Threading.Tasks;
 using ESO_Zone_Server.Protocol.Packet;
 using ESO_Zone_Server.Protocol.Messages;
+using System.Net;
+using System.IO;
 
 namespace ESO_Zone_Server.Protocol
 {
     public static class Zone
     {
+        public const int MSG_PORT = 28801;
+        public const int CHAT_PORT = 28805;
+        public const int CHAT_COUNT = 19;
+
         public static List<ZoneClient> OnlineClients = new List<ZoneClient>();
+
+        private static string getUsernameByID(int UserID)
+        {
+            HttpWebRequest webRequest = (HttpWebRequest)HttpWebRequest.Create("http://paginas.fe.up.pt/~ei10139/aomsvr/getUsernameByID.php?id=" + UserID);
+            using (var webResponse = (HttpWebResponse)webRequest.GetResponse())
+            using (var reader = new StreamReader(webResponse.GetResponseStream()))
+            {
+                return reader.ReadToEnd();
+            }
+        }
 
         public static List<IZonePacket> Process(ZoneClient zoneClient, byte[] data)
         {
@@ -100,7 +116,11 @@ namespace ESO_Zone_Server.Protocol
                         zoneClient.UserID = userID;
 
                         // TODO: Resolve username here...
-                        zoneClient.Username = "DFA_Elite_GaZeR\0";
+                        zoneClient.Username = Zone.getUsernameByID(userID);
+                        if (string.IsNullOrEmpty(zoneClient.Username)) // what do to ?
+                        {
+                        }
+                        zoneClient.Username += '\0';
 
                         var messageServer = new Messages.Messages.SecurityContextServer();
                         return new List<IZonePacket>()
