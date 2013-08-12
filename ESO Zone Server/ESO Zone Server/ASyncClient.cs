@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -41,15 +42,21 @@ namespace ESO_Zone_Server
             public byte[] buffer = new byte[BUFFER_SIZE];
 
             public MemoryStream PacketsMemoryStream = new MemoryStream();
+
+            public ConnectionState(Socket socket)
+            {
+                this.socket = socket;
+            }
         }
 
         internal ConnectionState state;
         internal ZoneClient zoneClient;
 
-        public ASyncClient()
+        public ASyncClient(Socket socket)
         {
-            state = new ConnectionState();
+            state = new ConnectionState(socket);
             zoneClient = new ZoneClient();
+            zoneClient.UserIPAddress = ((IPEndPoint)state.socket.RemoteEndPoint).Address;
             zoneClient.packetsToBeSent.CollectionChanged += (sender, eventArgs) =>
                 {
                     if (!zoneClient.IsProcessingOrSendingPackets)
@@ -59,7 +66,7 @@ namespace ESO_Zone_Server
                 };
         }
 
-        public void ProcessRequest(byte[] recievedData)
+        public void ProcessRequest(byte[] receivedData)
         {
             try
             {
@@ -67,7 +74,7 @@ namespace ESO_Zone_Server
                 {
                     zoneClient.IsProcessingOrSendingPackets = true;
                     zoneClient.packetsToBeSent.AddRange(
-                            Zone.Process(zoneClient, recievedData));
+                            Zone.Process(zoneClient, receivedData));
                 }
             }
             catch (Protocol.Packet.ZonePacket.NotEnoughBytesException ex)
@@ -90,22 +97,30 @@ namespace ESO_Zone_Server
             MemoryStream memoryStream;
             lock (client.zoneClient.packetsToBeSent)
             {
-                 memoryStream =
-                        client.zoneClient.packetsToBeSent.Aggregate(
-                                new MemoryStream(),
-                                (ms, packet) =>
-                                {
-                                    var packetBytes = packet.GetBytes(client.zoneClient.SecureKey);
-                                    ms.Write(packetBytes, 0, packetBytes.Length);
-                                    return ms;
-                                });
+                memoryStream =
+                       client.zoneClient.packetsToBeSent.Aggregate(
+                               new MemoryStream(),
+                               (ms, packet) =>
+                               {
+                                   var packetBytes = packet.GetBytes(client.zoneClient.SecureKey);
+                                   ms.Write(packetBytes, 0, packetBytes.Length);
+                                   return ms;
+                               });
 
                 client.zoneClient.packetsToBeSent.Clear();
             }
 
-            client.state.socket.BeginSend(
-                    memoryStream.ToArray(), 0, memoryStream.ToArray().Length, SocketFlags.None,
-                    new AsyncCallback(SendPacketsCallback), client);
+            try
+            {
+                client.state.socket.BeginSend(
+                        memoryStream.ToArray(), 0, memoryStream.ToArray().Length, SocketFlags.None,
+                        new AsyncCallback(SendPacketsCallback), client);
+            }
+            catch (SocketException ex)
+            {
+                Log.Debug("ASyncServer", "Client closed socket.");
+                Zone.ClientWentOffline(client);
+            }
 
             client.zoneClient.IsProcessingOrSendingPackets = false;
         }

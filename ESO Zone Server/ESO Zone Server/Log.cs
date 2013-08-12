@@ -17,6 +17,7 @@
 **/
 
 using ESO_Zone_Server.Protocol;
+using ESO_Zone_Server.Protocol.Messages;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -24,6 +25,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,14 +73,16 @@ namespace ESO_Zone_Server
             logInstance = this;
 
             // Start Message Server
-            var thread = new Thread(ASyncServer.Start);
+            var messageServer = new ASyncServer();
+            var thread = new Thread(messageServer.Start);
             thread.Start(Zone.MSG_PORT);
 
             // Start Chat\Lobby Server
-            for (int i = 0; i < Zone.CHAT_COUNT; i++)
+            Zone.InitiateZoneLobbies();
+            for (int i = 0; i < Zone.LOBBIES_COUNT; i++)
             {
-                var threadChat = new Thread(ASyncServer.Start);
-                threadChat.Start(Zone.CHAT_PORT + i);
+                var threadChat = new Thread(new ASyncServer().Start);
+                threadChat.Start(Zone.LOBBY_PORT + i);
             }
         }
     }

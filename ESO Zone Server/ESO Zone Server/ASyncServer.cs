@@ -31,9 +31,9 @@ namespace ESO_Zone_Server
 {
     public class ASyncServer
     {
-        public static ManualResetEvent waitForNewConnection = new ManualResetEvent(false);
+        public ManualResetEvent waitForNewConnection = new ManualResetEvent(false);
 
-        public static void Start(object port)
+        public void Start(object port)
         {
             IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.1.88");
             IPAddress ipAddress = ipHostInfo.AddressList[0];
@@ -62,7 +62,7 @@ namespace ESO_Zone_Server
             }
         }
 
-        public static void AcceptCallback(IAsyncResult ar)
+        public void AcceptCallback(IAsyncResult ar)
         {
             waitForNewConnection.Set();
 
@@ -70,17 +70,17 @@ namespace ESO_Zone_Server
             Socket listener = (Socket) ar.AsyncState;
             Socket handler = listener.EndAccept(ar);
 
-            var client = new ASyncClient();
-            client.state.socket = handler;
-            if (((IPEndPoint)handler.LocalEndPoint).Port >= Zone.CHAT_PORT)
+            var client = new ASyncClient(handler);
+            int port = ((IPEndPoint)handler.LocalEndPoint).Port;
+            if (port >= Zone.LOBBY_PORT)
             {
-                client.zoneClient.IsOnLobby = true;
+                client.zoneClient.Lobby = Zone.GetZoneLobby(port);
             }
             Log.Inform("ASyncServer", "New connection setup. Waiting for client first message.");
             handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, 0, new AsyncCallback(ReadCallback), client);
         }
 
-        public static void ReadCallback(IAsyncResult ar)
+        public void ReadCallback(IAsyncResult ar)
         {
             // Retrieve the state object and the handler socket
             // from the asynchronous state object.
@@ -88,34 +88,42 @@ namespace ESO_Zone_Server
             Socket handler = client.state.socket;
 
             // Read data from the client socket. 
-            int bytesRead = handler.EndReceive(ar);
-
-            Log.Inform("ASyncServer", "Got client message, " + bytesRead + " bytes read.");
-            if (bytesRead > 0)
+            try
             {
-                client.state.PacketsMemoryStream.Write(client.state.buffer, 0, bytesRead);
-                try
+                int bytesRead = handler.EndReceive(ar);
+
+                Log.Inform("ASyncServer", "Got client message, " + bytesRead + " bytes read.");
+                if (bytesRead > 0)
                 {
-                    byte[] recievedData = client.state.PacketsMemoryStream.ToArray();
-                    client.ProcessRequest(recievedData);
-                    client.state.PacketsMemoryStream = new MemoryStream();
+                    client.state.PacketsMemoryStream.Write(client.state.buffer, 0, bytesRead);
+                    try
+                    {
+                        byte[] recievedData = client.state.PacketsMemoryStream.ToArray();
+                        client.ProcessRequest(recievedData);
+                        client.state.PacketsMemoryStream = new MemoryStream();
+                    }
+                    catch (Protocol.Packet.ZonePacket.NotEnoughBytesException ex)
+                    {
+                    }
+                    finally
+                    {
+                        Log.Inform("ASyncServer", "Waiting for client reply.");
+                        handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, SocketFlags.None, new AsyncCallback(ReadCallback), client);
+                    }
                 }
-                catch (Protocol.Packet.ZonePacket.NotEnoughBytesException ex)
+                else
                 {
-                }
-                finally
-                {
-                    Log.Inform("ASyncServer", "Waiting for client reply.");
-                    handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, SocketFlags.None, new AsyncCallback(ReadCallback), client);
+                    // Client doesn't want to send anything else now, gracefull disconnection?
+                    if (handler.Connected)
+                    {
+                        handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, SocketFlags.None, new AsyncCallback(ReadCallback), client);
+                    }
                 }
             }
-            else
+            catch (SocketException ex)
             {
-                // Client doesn't want to send anything else now, gracefull disconnection?
-                if (handler.Connected)
-                {
-                    handler.BeginReceive(client.state.buffer, 0, client.state.buffer.Length, SocketFlags.None, new AsyncCallback(ReadCallback), client);
-                }
+                Log.Debug("ASyncServer", "Client closed socket.");
+                Zone.ClientWentOffline(client);
             }
         }
     }

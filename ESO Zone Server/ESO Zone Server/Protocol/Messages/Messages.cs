@@ -23,6 +23,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using zlib;
 
 namespace ESO_Zone_Server.Protocol.Messages
 {
@@ -138,7 +139,7 @@ namespace ESO_Zone_Server.Protocol.Messages
                 memoryStream.Write(BitConverter.GetBytes(4 + 8 + 44), 0, 4);
 
                 memoryStream.Write(BitConverter.GetBytes(Unknown_0), 0, 4);
-                memoryStream.Write(System.Text.Encoding.ASCII.GetBytes(ZWebAuthSignature), 0, 8);
+                memoryStream.Write(Encoding.ASCII.GetBytes(ZWebAuthSignature), 0, 8);
                 memoryStream.Write(Unknown_1, 0, Unknown_1.Length);
                 return memoryStream.ToArray();
             }
@@ -443,7 +444,7 @@ namespace ESO_Zone_Server.Protocol.Messages
             public Int32 Unused_0;
 
             /// <summary>
-            /// Always 0x1000 or 65536. This is also used in ErrorMessage
+            /// Always 0x1000 or 65536. This is also used in ErrorMessage, ConnectMessage and ConnectRoomMessage
             /// </summary>
             public Int32 Unknown_0;
 
@@ -463,7 +464,7 @@ namespace ESO_Zone_Server.Protocol.Messages
                 var parsedMessage = new ConnectMessage();
                 parsedMessage.Unused_0 = BitConverter.ToInt32(Data, 0);
                 parsedMessage.Unknown_0 = BitConverter.ToInt32(Data, 4);
-                parsedMessage.ProtocolSignature = System.Text.Encoding.ASCII.GetString(Data, 8, 8);
+                parsedMessage.ProtocolSignature = Encoding.ASCII.GetString(Data, 8, 8);
                 return parsedMessage;
             }
         }
@@ -503,7 +504,7 @@ namespace ESO_Zone_Server.Protocol.Messages
                 
                 memoryStream.Write(BitConverter.GetBytes(Unused_0), 0, 4);
                 memoryStream.Write(BitConverter.GetBytes(Unknown_0), 0, 4);
-                memoryStream.Write(System.Text.Encoding.ASCII.GetBytes(ConfigurationText), 0, ConfigurationText.Length);
+                memoryStream.Write(Encoding.ASCII.GetBytes(ConfigurationText), 0, ConfigurationText.Length);
                 return memoryStream.ToArray();
             }
         }
@@ -1022,6 +1023,531 @@ namespace ESO_Zone_Server.Protocol.Messages
                 memoryStream.Write(BitConverter.GetBytes(Unused_0), 0, 4);
                 memoryStream.Write(BitConverter.GetBytes(Unknown_0), 0, 2);
                 memoryStream.Write(System.Text.Encoding.ASCII.GetBytes(Username), 0, Username.Length);
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class RoomConnectMessage : MessageClient
+        {
+            /// <summary>
+            /// Always 1818387065, 'ybbl', 'lbby' backwards, short for lobby
+            /// </summary>
+            public Int32 Signature;
+
+            /// <summary>
+            /// Always 23
+            /// </summary>
+            public Int32 Unknown_0;
+
+            /// <summary>
+            /// Always 0x1000 or 65536. This is also used in ErrorMessage, ConnectMessage and ConnectRoomMessage
+            /// </summary>
+            public Int32 Unknown_1;
+
+            /// <summary>
+            /// Chat name. Max 32 chars, '\0' terminated
+            /// </summary>
+            public String ChatName;
+
+            public Int32 AppID;
+
+            public Int16 Unknown_TotalGamesPlayed;
+
+            public Int16 Unknown_TotalWins;
+
+            public Int16 Unknown_2;
+
+            public Int16 Unknown_3;
+
+            public Int16 ESORating;
+
+            public Int16 FavouriteGod;
+
+            public ZoneClient.AppID GetAppID()
+            {
+                return (AppID & 0x10) == 0 ? ZoneClient.AppID.AoM : ZoneClient.AppID.AoT;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.ROOM_CONNECT;
+            }
+
+            public override MessageClient Parse(Message message)
+            {
+                byte[] Data = message.Data;
+                var parsedMessage = new RoomConnectMessage();
+                parsedMessage.Signature = BitConverter.ToInt32(Data, 0);
+                parsedMessage.Unknown_0 = BitConverter.ToInt32(Data, 4);
+                parsedMessage.Unknown_1 = BitConverter.ToInt32(Data, 8);
+
+                parsedMessage.ChatName = System.Text.Encoding.ASCII.GetString(Data, 12, 64);
+                parsedMessage.ChatName =
+                    parsedMessage.ChatName.TrimEnd('\0') + '\0';
+
+                parsedMessage.AppID = BitConverter.ToInt32(Data, 76);
+                parsedMessage.Unknown_TotalGamesPlayed = BitConverter.ToInt16(Data, 80);
+                parsedMessage.Unknown_TotalWins = BitConverter.ToInt16(Data, 82);
+                parsedMessage.Unknown_2 = BitConverter.ToInt16(Data, 84);
+                parsedMessage.Unknown_3 = BitConverter.ToInt16(Data, 86);
+                parsedMessage.ESORating = BitConverter.ToInt16(Data, 88);
+                parsedMessage.FavouriteGod = BitConverter.ToInt16(Data, 90);
+
+                return parsedMessage;
+            }
+        }
+
+        public class RoomAccessedMessage : MessageServer
+        {
+            public short UserLobbyID;
+
+            public RoomAccessedMessage(short UserLobbyID)
+            {
+                this.UserLobbyID = UserLobbyID;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.ROOM_ACCESSED;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(5256), 0, 4);
+
+                memoryStream.Write(BitConverter.GetBytes(UserLobbyID), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)0), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(0), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(1), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes((short)1), 0, 2);
+                memoryStream.Write(Encoding.ASCII.GetBytes("zlaunch.dll".PadRight(32, '\0')), 0, 32);
+                memoryStream.Write(Encoding.ASCII.GetBytes("LobbyRes.dll".PadRight(32, '\0')), 0, 32);
+                memoryStream.Write(Encoding.ASCII.GetBytes("Age 2 Expansion".PadRight(64, '\0')), 0, 64);
+                memoryStream.Write(Encoding.ASCII.GetBytes("{5DE93F3F-FC90-4ee1-AE5A-63DAFA055950}".PadRight(64, '\0')), 0, 64);
+                memoryStream.Write(Encoding.ASCII.GetBytes("1.0A".PadRight(16, '\0')), 0, 16);
+                memoryStream.Write(BitConverter.GetBytes(131147), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(1048584), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes((short)0), 0, 2);
+
+                memoryStream.Write(Encoding.ASCII.GetBytes(
+                    @"Software\Microsoft\Microsoft Games\Age of Empires II: The Conquerors Expansion\1.0".PadRight(1024, '\0'))
+                    , 0, 1024);
+                memoryStream.Write(Encoding.ASCII.GetBytes(
+                    "We are not able to detect Age 2 Expansion installed on your hard drive. Please install the game before matchmaking on the Zone.".PadRight(256, '\0'))
+                    , 0, 256);
+                memoryStream.Write(Encoding.ASCII.GetBytes(
+                    "You have an old version of Age 2 Expansion. Click on Go To Downloads to get the latest patch installed.".PadRight(256, '\0'))
+                    , 0, 256);
+
+                memoryStream.Write(Encoding.ASCII.GetBytes("Version".PadRight(128, '\0')), 0, 128);
+                memoryStream.Write(Encoding.ASCII.GetBytes("EXE Path".PadRight(128, '\0')), 0, 128);
+                memoryStream.Write(BitConverter.GetBytes(20), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(182960667616870403), 0, 8);
+
+                memoryStream.Write(new byte[3220], 0, 3220);
+
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class InfoRecord
+        {
+            /// <summary>
+            /// The unique ID for this infoRecord
+            /// </summary>
+            public Int32 ID;
+
+            /// <summary>
+            /// Usually 0
+            /// </summary>
+            public Int32 Unknown_0 = 0;
+
+            /// <summary>
+            /// Username, 32 chars, terminates in '\0'
+            /// </summary>
+            public string Username;
+
+            /// <summary>
+            /// Contains the 4 byte of IP address, in reverse order
+            /// </summary>
+            public byte[] ipAddress = new byte[4];
+
+            /// <summary>
+            /// Usually 0
+            /// </summary>
+            public Int32 Unknown_1 = 0;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_2 = -1;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_3 = -1;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_4 = -1;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_5 = -1;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_6 = -1;
+
+            /// <summary>
+            /// 0
+            /// </summary>
+            public Int16 Unknown_7 = 0;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_8 = -1;
+
+            /// <summary>
+            /// -1
+            /// </summary>
+            public Int16 Unknown_9 = -1;
+
+            public Int16 AppID = 1;
+
+            public Int16 Unknown_10 = 0;
+
+            public Int16 Unknown_TotalGamesPlayed;
+
+            public Int16 Unknown_TotalWins;
+
+            public Int16 Unknown_11;
+
+            public Int16 Unknown_12;
+
+            public Int16 ESORating = 1600;
+
+            public Int16 FavouriteGod = -1;
+
+            public ZoneClient.AppID GetAppID()
+            {
+                return AppID == 1 ? ZoneClient.AppID.AoM : ZoneClient.AppID.AoT;
+            }
+
+            public InfoRecord(ZoneClient zoneClient)
+            {
+                this.ID = zoneClient.UserLobbyID;
+                this.Username = zoneClient.Username.PadRight(32, '\0');
+                this.AppID = (short)(zoneClient.CurrentAppID == ZoneClient.AppID.AoM ? 1 : 2);
+                this.ipAddress = zoneClient.UserIPAddress.GetAddressBytes();
+                Array.Reverse(this.ipAddress);
+            }
+
+            public byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(ID), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_0), 0, 4);
+                memoryStream.Write(Encoding.ASCII.GetBytes(Username), 0, 32);
+                memoryStream.Write(ipAddress, 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_1), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_2), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_3), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_4), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_5), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_6), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_7), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_8), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_9), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)AppID), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)Unknown_10), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_TotalGamesPlayed), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_TotalWins), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_11), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_12), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(ESORating), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(FavouriteGod), 0, 2);
+
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class RoomInfoMessage : MessageServer
+        {
+            /// <summary>
+            /// Seen value: 8
+            /// </summary>
+            public Int16 Unused_0 = 8;
+
+            /// <summary>
+            /// User Count
+            /// </summary>
+            public Int16 InfoRecordsCount
+            {
+                get
+                {
+                    return (short)InfoRecords.Length;
+                }
+            }
+
+            /// <summary>
+            /// Unknown
+            /// </summary>
+            public Int32 Unknown_0 = 0;
+
+            public InfoRecord[] InfoRecords;
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.ROOM_INFO;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(2 + 2 + 4 + 80 * InfoRecordsCount + 60 * Unknown_0 + 4), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes((short)Unused_0), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes((short)InfoRecordsCount), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unknown_0), 0, 4);
+
+                foreach (var infoRecord in InfoRecords)
+                {
+                    var bytes = infoRecord.GetBytes();
+                    memoryStream.Write(bytes, 0, bytes.Length);
+                }
+                memoryStream.Write(new byte[4], 0, 4);
+
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class EnterMessage : MessageServer
+        {
+
+            public InfoRecord UserInfoRecord;
+
+            public EnterMessage(InfoRecord UserInfoRecord)
+            {
+                this.UserInfoRecord = UserInfoRecord;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.ENTER;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(80), 0, 4);
+                var bytes = UserInfoRecord.GetBytes();
+                memoryStream.Write(bytes, 0, bytes.Length);
+
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class LeaveMessage : MessageServer
+        {
+
+            public InfoRecord UserInfoRecord;
+
+            public LeaveMessage(InfoRecord UserInfoRecord)
+            {
+                this.UserInfoRecord = UserInfoRecord;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.LEAVE;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(80), 0, 4);
+                var bytes = UserInfoRecord.GetBytes();
+                memoryStream.Write(bytes, 0, bytes.Length);
+
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class TalkMessage : MessageClient
+        {
+            /// <summary>
+            /// The ID for the user on the chat\lobby
+            /// </summary>
+            public Int32 ID;
+
+            /// <summary>
+            /// Message Length (Zip byte length)
+            /// </summary>
+            public Int16 MessageLength;
+
+            /// <summary>
+            /// Sometimes it's 0, sometimes it isnt'
+            /// </summary>
+            public Int16 Unkown_0;
+
+            /// <summary>
+            /// The compressed string
+            /// </summary>
+            public byte[] MessageZipped;
+
+            /// <summary>
+            /// Message unzipped.
+            /// </summary>
+            public string Message
+            {
+                get
+                {
+                    using (ZInputStream zInputStream = new ZInputStream(new MemoryStream(MessageZipped)))
+                    {
+                        byte[] bytes = new byte[1024];
+                        int len = 0;
+                        while (zInputStream.read(bytes, len, MessageLength) > 0)
+                        {
+                            len = (int)zInputStream.TotalOut;
+                        }
+
+                        byte[] stringBytes = new byte[len];
+                        Array.Copy(bytes, stringBytes, len);
+                        return Encoding.Unicode.GetString(stringBytes, 0, len);
+                    }
+                }
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.TALK;
+            }
+
+            public override MessageClient Parse(Message message)
+            {
+                byte[] Data = message.Data;
+                var parsedMessage = new TalkMessage();
+                parsedMessage.ID = BitConverter.ToInt32(Data, 0);
+                parsedMessage.MessageLength = BitConverter.ToInt16(Data, 4);
+                parsedMessage.Unkown_0 = BitConverter.ToInt16(Data, 6);
+
+                parsedMessage.MessageZipped = new byte[parsedMessage.MessageLength];
+
+                Array.Copy(Data, 8, parsedMessage.MessageZipped, 0, parsedMessage.MessageLength);
+                string lol = parsedMessage.Message;
+                return parsedMessage;
+            }
+        }
+
+        public class TalkResponseIDMessage : MessageServer
+        {
+            /// <summary>
+            /// The ID for the user on the chat\lobby
+            /// </summary>
+            public Int32 ID;
+
+            /// <summary>
+            /// Message Length (Zip byte length)
+            /// </summary>
+            public Int16 MessageLength
+            {
+                get
+                {
+                    return (Int16)Message.Length;
+                }
+            }
+
+            /// <summary>
+            /// Sometimes it's 0, sometimes it isnt'
+            /// </summary>
+            public Int16 Unkown_0 = 0;
+
+            /// <summary>
+            /// The compressed string
+            /// </summary>
+            public byte[] MessageZipped
+            {
+                get
+                {
+                    var memoryStream = new MemoryStream();
+                    using (ZOutputStream zOutputStream = new ZOutputStream(memoryStream, zlib.zlibConst.Z_BEST_COMPRESSION))
+                    {
+                        var stringBytes = Encoding.Unicode.GetBytes(Message);
+                        zOutputStream.Write(stringBytes, 0, stringBytes.Length);
+                    }
+                    return memoryStream.ToArray();
+                }
+            }
+
+            /// <summary>
+            /// Message unzipped.
+            /// </summary>
+            public string Message;
+
+            public TalkResponseIDMessage(InfoRecord InfoRecord, string Message)
+            {
+                this.ID = InfoRecord.ID;
+                if (!Message.EndsWith("\0"))
+                {
+                    Message += '\0';
+                }
+                this.Message = Message;
+            }
+
+            public TalkResponseIDMessage(Int32 ID, string Message)
+            {
+                this.ID = ID;
+                if (!Message.EndsWith("\0"))
+                {
+                    Message += '\0';
+                }
+                this.Message = Message;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.TALK_RESPONSE_ID;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var stringZippedBytes = MessageZipped;
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(8 + stringZippedBytes.Length + 1), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(ID), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(stringZippedBytes.Length + 1), 0, 2);
+                memoryStream.Write(BitConverter.GetBytes(Unkown_0), 0, 2);
+                memoryStream.Write(stringZippedBytes, 0, stringZippedBytes.Length);
+                memoryStream.WriteByte(0);
+                
+                return memoryStream.ToArray();
+            }
+        }
+
+        public class DisconnectMessage : MessageServer
+        {
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.DISCONNECT;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(0), 0, 4);
+
                 return memoryStream.ToArray();
             }
         }

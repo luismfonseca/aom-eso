@@ -70,14 +70,19 @@ namespace ESO_Zone_Server.Protocol.Packet
             }
         }
 
-        internal static void xorBytesFixTail(ref byte[] data, Int32 secureKey)
+        internal static void xorBytesFixTail(ref byte[] data, Int32 secureKey, int bytesNeedFixing = 0)
         {
-            if (data.Length % 4 == 0)
+            if (bytesNeedFixing == 0 && data.Length % 4 == 0)
+            {
                 return;
+            }
 
             var key = BitConverter.GetBytes(secureKey);
             Array.Reverse(key);
-            int bytesNeedFixing = data.Length % 4;
+            if (bytesNeedFixing == 0)
+            {
+                bytesNeedFixing = data.Length % 4;
+            }
             for (int i = data.Length - bytesNeedFixing; i < data.Length; i++)
             {
                 data[i] ^= key[i % 4];
@@ -139,7 +144,23 @@ namespace ESO_Zone_Server.Protocol.Packet
             Int32 computedCRC = calculateCRC(parsedPacket.Data);
             if (computedCRC != parsedPacket.CRC)
             {
-                throw new CRCMismatchException(parsedPacket, computedCRC);
+                // this might mean the key was applied to the ending bytes unnecessarily. Let's attempt to fix it
+                xorBytesFixTail(ref parsedPacket.Data, secureKey, 1);
+                if (calculateCRC(parsedPacket.Data) != parsedPacket.CRC)
+                {
+                    xorBytesFixTail(ref parsedPacket.Data, secureKey, 1); // unapply xor because it wasn't effective
+                    xorBytesFixTail(ref parsedPacket.Data, secureKey, 2);
+                    if (calculateCRC(parsedPacket.Data) != parsedPacket.CRC)
+                    {
+                        xorBytesFixTail(ref parsedPacket.Data, secureKey, 2);
+                        xorBytesFixTail(ref parsedPacket.Data, secureKey, 3);
+                        if (calculateCRC(parsedPacket.Data) != parsedPacket.CRC)
+                        {
+                            xorBytesFixTail(ref parsedPacket.Data, secureKey, 3);
+                            throw new CRCMismatchException(parsedPacket, computedCRC);
+                        }
+                    }
+                }
             }
 
             return parsedPacket;

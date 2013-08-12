@@ -31,10 +31,25 @@ namespace ESO_Zone_Server.Protocol
     public static class Zone
     {
         public const int MSG_PORT = 28801;
-        public const int CHAT_PORT = 28805;
-        public const int CHAT_COUNT = 19;
+        public const int LOBBY_PORT = 28805;
+        public const int LOBBIES_COUNT = 19;
 
         public static List<ZoneClient> OnlineClients = new List<ZoneClient>();
+
+        public static List<ZoneLobby> ZoneLobbies = new List<ZoneLobby>();
+
+        public static void InitiateZoneLobbies()
+        {
+            for (int i = 0; i < LOBBIES_COUNT; i++)
+            {
+                ZoneLobbies.Add(new ZoneLobby());
+            }
+        }
+
+        public static ZoneLobby GetZoneLobby(int Port)
+        {
+            return ZoneLobbies[Port - LOBBY_PORT];
+        }
 
         private static string getUsernameByID(int UserID)
         {
@@ -119,6 +134,7 @@ namespace ESO_Zone_Server.Protocol
                         zoneClient.Username = Zone.getUsernameByID(userID);
                         if (string.IsNullOrEmpty(zoneClient.Username)) // what do to ?
                         {
+                            zoneClient.Username = "DOA_invent00r";
                         }
                         zoneClient.Username += '\0';
 
@@ -143,25 +159,45 @@ namespace ESO_Zone_Server.Protocol
                 case ZoneClient.UserProtocolState.ConnectingProtocol:
                     {
                         zoneClient.CurrentProtocolState = ZoneClient.UserProtocolState.Online;
-                        Zone.OnlineClients.Add(zoneClient);
                         var messageClient = Message.Parse(packet);
 
-                        var messageServer = new Messages.Messages.ConnectAckMessage(zoneClient.Username);
-                        var welcomeServerMessage =
-                                new Messages.Messages.DataMessageStringServer(
-                                        "Server",
-                                        "Welcome online! Please send your feedback using /feedback {insert suggestion here} on the chat.");
-                        return new List<IZonePacket>()
+                        if (messageClient is Messages.Messages.RoomConnectMessage)
                         {
-                            ZonePacket.FromMessage(messageServer, zoneClient),
-                            ZonePacket.FromMessage(welcomeServerMessage, zoneClient)
-                        };
+                            zoneClient.UserLobbyID = zoneClient.Lobby.GetNextAvailableUserLobbyID();
+                            var roomAccessedMessage = new Messages.Messages.RoomAccessedMessage(zoneClient.UserLobbyID);
+
+                            zoneClient.Lobby.Users.Add(zoneClient);
+
+                            return new List<IZonePacket>()
+                            {
+                                ZonePacket.FromMessage(roomAccessedMessage, zoneClient),
+                            };
+                        }
+                        else
+                        {
+                            Zone.OnlineClients.Add(zoneClient);
+                            var messageServer = new Messages.Messages.ConnectAckMessage(zoneClient.Username);
+                            var welcomeServerMessage =
+                                    new Messages.Messages.DataMessageStringServer(
+                                            "Server",
+                                            "Welcome online! Please send your feedback using /feedback {insert suggestion here} on the chat.");
+                            return new List<IZonePacket>()
+                            {
+                                ZonePacket.FromMessage(messageServer, zoneClient),
+                                ZonePacket.FromMessage(welcomeServerMessage, zoneClient)
+                            };
+                        }
                     }
                 case ZoneClient.UserProtocolState.Online:
                     {
                         var messageClient = Message.Parse(packet, zoneClient.IsOnLobby);
 
-                        if (messageClient is Messages.Messages.WatchMessage)
+                        if (messageClient is Messages.Messages.TalkMessage)
+                        {
+                            var talkMessageClient = (messageClient as Messages.Messages.TalkMessage);
+                            zoneClient.Lobby.Messages.Add(Tuple.Create(zoneClient.UserLobbyID, talkMessageClient.Message));
+                        }
+                        else if (messageClient is Messages.Messages.WatchMessage)
                         {
                             var watchMessage = messageClient as Messages.Messages.WatchMessage;
                             zoneClient.WatchList.Add(watchMessage.Username);
@@ -187,20 +223,7 @@ namespace ESO_Zone_Server.Protocol
                         else if (messageClient is Messages.Messages.StateMessage)
                         {
                             var stateMessage = messageClient as Messages.Messages.StateMessage;
-                            zoneClient.CurrentUserState = stateMessage.GetUserState();
-                            zoneClient.CurrentAppID = stateMessage.GetAppID();
-                            Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
-                                    + " AppID[" + zoneClient.CurrentAppID + "]"
-                                    + " UserState[" + zoneClient.CurrentUserState + "]");
-
-                            var stateAckMessage = new Messages.Messages.StateAckMessage();
-                            packetsToSend.Add(
-                                    ZonePacket.FromMessage(stateAckMessage, zoneClient));
-
-                            var userMessage = new Messages.Messages.UserMessage(zoneClient.Username, zoneClient.CurrentAppID, zoneClient.CurrentUserState);
-                            Zone.OnlineClients.Where(client => client.WatchList.Contains(zoneClient.Username, StringComparer.OrdinalIgnoreCase))
-                                    .ForEach(_ => _.packetsToBeSent.Add(
-                                            ZonePacket.FromMessage(userMessage, _)));
+                            Zone.SetCurrentUserStateAndAppID(zoneClient, stateMessage.GetUserState(), stateMessage.GetAppID(), packetsToSend);
                         }
                         else if (messageClient is Messages.Messages.DataMessageClient)
                         {
@@ -272,11 +295,54 @@ namespace ESO_Zone_Server.Protocol
             return packetsToSend;
         }
 
+        public static void SetCurrentUserStateAndAppID(
+            ZoneClient zoneClient, ZoneClient.UserState userState, ZoneClient.AppID appID, List<IZonePacket> packets = null)
+        {
+            zoneClient.CurrentAppID = appID;
+            zoneClient.CurrentUserState = userState;
+
+            Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
+                    + " AppID[" + zoneClient.CurrentAppID + "]"
+                    + " UserState[" + zoneClient.CurrentUserState + "]");
+
+            var stateAckMessage = new Messages.Messages.StateAckMessage();
+            if (packets == null)
+            {
+                zoneClient.packetsToBeSent.Add(
+                        ZonePacket.FromMessage(stateAckMessage, zoneClient));
+            }
+            else
+            {
+                packets.Add(
+                        ZonePacket.FromMessage(stateAckMessage, zoneClient));
+            }
+
+            var userMessage = new Messages.Messages.UserMessage(zoneClient.Username, zoneClient.CurrentAppID, zoneClient.CurrentUserState);
+            Zone.OnlineClients
+                .Where(client => string.Equals(client.Username, zoneClient.Username, StringComparison.OrdinalIgnoreCase) == false
+                                 && client.WatchList.Contains(zoneClient.Username, StringComparer.OrdinalIgnoreCase))
+                    .ForEach(_ => _.packetsToBeSent.Add(
+                            ZonePacket.FromMessage(userMessage, _)));
+        }
+
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> action)
         {
             foreach (T element in source)
             {
                 action(element);
+            }
+        }
+
+        public static void ClientWentOffline(ASyncClient client)
+        {
+            if (client.zoneClient.IsOnLobby)
+            {
+                client.zoneClient.Lobby.Users.Remove(client.zoneClient);
+            }
+            else
+            {
+                Zone.SetCurrentUserStateAndAppID(client.zoneClient, ZoneClient.UserState.Offline, ZoneClient.AppID.Offline);
+                Zone.OnlineClients.RemoveAll(_ => _.Username == client.zoneClient.Username);
             }
         }
     }

@@ -42,6 +42,9 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="zlib.net">
+      <HintPath>..\..\..\AoM Mother Nature Editor\zlib.net.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ASyncClient.cs" />
@@ -61,7 +64,8 @@
     <Compile Include="Protocol\Packet\FirstZonePacket.cs" />
     <Compile Include="Protocol\Packet\IZonePacket.cs" />
     <Compile Include="Protocol\Packet\ZonePacket.cs" />
-    <Compile Include="Protocol\ZoneClientState.cs" />
+    <Compile Include="Protocol\ZoneLobby.cs" />
+    <Compile Include="Protocol\ZoneClient.cs" />
     <Compile Include="Protocol\Zone.cs" />
     <EmbeddedResource Include="Log.resx">
       <DependentUpon>Log.cs</DependentUpon>

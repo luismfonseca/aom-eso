@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -72,7 +73,19 @@ namespace ESO_Zone_Server.Protocol
 
         public int UserID;
 
-        public bool IsOnLobby = false;
+        public short UserLobbyID;
+
+        public IPAddress UserIPAddress;
+
+        public bool IsOnLobby
+        {
+            get
+            {
+                return Lobby != null;
+            }
+        }
+
+        public ZoneLobby Lobby = null;
 
         public UserProtocolState CurrentProtocolState;
 
