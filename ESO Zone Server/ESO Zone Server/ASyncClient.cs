@@ -118,7 +118,7 @@ namespace ESO_Zone_Server
             }
             catch (SocketException ex)
             {
-                Log.Debug("ASyncServer", "Client closed socket.");
+                Log.Debug("ASyncClient", "Client closed socket.");
                 Zone.ClientWentOffline(client);
             }
 

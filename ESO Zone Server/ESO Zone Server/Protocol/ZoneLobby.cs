@@ -1,4 +1,5 @@
-﻿using ESO_Zone_Server.Protocol.Packet;
+﻿using ESO_Zone_Server.Protocol.Messages;
+using ESO_Zone_Server.Protocol.Packet;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -17,6 +18,8 @@ namespace ESO_Zone_Server.Protocol
 
         public ObservableCollection<Tuple<short, string>> Messages = new ObservableCollection<Tuple<short, string>>();
 
+        public Dictionary<short, string> UsernamesByID = new Dictionary<short, string>();
+
         public ZoneLobby()
         {
             Users.CollectionChanged += (sender, args) =>
@@ -24,6 +27,7 @@ namespace ESO_Zone_Server.Protocol
                 if (Users.Count == 0)
                 {
                     Messages.Clear();
+                    UsernamesByID.Clear();
                 }
                 else
                 {
@@ -45,9 +49,20 @@ namespace ESO_Zone_Server.Protocol
                                 zoneClient.packetsToBeSent.Add(ZonePacket.FromMessage(roomInfoMessage, zoneClient));
 
                                 // Send Messages
-                                // TODO: what if player left?... use TalkResponse instead
+                                // What if player left?... Using TalkResponse instead
                                 var chatLog = Messages.Select(message =>
-                                    ZonePacket.FromMessage(new Messages.Messages.TalkResponseIDMessage(message.Item1, message.Item2), zoneClient)).ToList();
+                                    {
+                                        MessageServer talkMessage;
+                                        if (Users.Count(zClient => zClient.UserLobbyID == message.Item1) == 0)
+                                        {
+                                            talkMessage = new Messages.Messages.TalkResponseMessage(UsernamesByID[(short)message.Item1], message.Item2);
+                                        }
+                                        else
+                                        {
+                                            talkMessage = new Messages.Messages.TalkResponseIDMessage(message.Item1, message.Item2);
+                                        }
+                                        return ZonePacket.FromMessage(talkMessage, zoneClient);
+                                    }).ToList();
 
                                 zoneClient.packetsToBeSent.AddRange(chatLog);
                                 break;
@@ -55,6 +70,11 @@ namespace ESO_Zone_Server.Protocol
                         case NotifyCollectionChangedAction.Remove:
                             {
                                 var zoneClient = args.OldItems[0] as ZoneClient;
+                                if (Messages.Count(message => ((short)message.Item1) == zoneClient.UserLobbyID) > 0)
+                                {
+                                    UsernamesByID.Add(zoneClient.UserLobbyID, zoneClient.Username);
+                                }
+
                                 var leaveMessage = new Messages.Messages.LeaveMessage(
                                     new Messages.Messages.InfoRecord(zoneClient));
 
@@ -69,14 +89,25 @@ namespace ESO_Zone_Server.Protocol
                 switch (args.Action)
                 {
                     case NotifyCollectionChangedAction.Remove:
+                        {
+                            var userLobbyID = ((Tuple<short, string>)args.OldItems[0]).Item1;
+                            if (Messages.Count(message => ((short)message.Item1) == userLobbyID) == 0)
+                            {
+                                UsernamesByID.Remove(userLobbyID);
+                            }
+                            return;
+                        }
                     case NotifyCollectionChangedAction.Reset:
                         return;
                     case NotifyCollectionChangedAction.Add:
-                        var userID = ((Tuple<short, string>)args.NewItems[0]).Item1;
-                        var message = ((Tuple<short, string>)args.NewItems[0]).Item2;
-                        var talkResponseIDMessage = new Messages.Messages.TalkResponseIDMessage(userID, message);
-                        Users.ForEach(_ => { _.packetsToBeSent.Add(ZonePacket.FromMessage(talkResponseIDMessage, _)); });
-                        break;
+                        {
+                            var userLobbyID = ((Tuple<short, string>)args.NewItems[0]).Item1;
+                            var message = ((Tuple<short, string>)args.NewItems[0]).Item2;
+
+                            var talkMessage = new Messages.Messages.TalkResponseIDMessage(userLobbyID, message);
+                            Users.ForEach(_ => { _.packetsToBeSent.Add(ZonePacket.FromMessage(talkMessage, _)); });
+                            return;
+                        }
                 }
             };
         }
@@ -86,7 +117,8 @@ namespace ESO_Zone_Server.Protocol
             short id;
             for (id = ZoneLobby.DEFAULT_USER_ID; id < short.MaxValue; id++)
             {
-                if (Users.Count(zoneClient => zoneClient.UserLobbyID == id) == 0)
+                if (Users.Count(zoneClient => zoneClient.UserLobbyID == id) == 0
+                 && Messages.Count(message => ((short)message.Item1) == id) == 0)
                 {
                     return id;
                 }

@@ -298,7 +298,7 @@ namespace ESO_Zone_Server.Protocol
         public static void SetCurrentUserStateAndAppID(
             ZoneClient zoneClient, ZoneClient.UserState userState, ZoneClient.AppID appID, List<IZonePacket> packets = null)
         {
-            zoneClient.CurrentAppID = appID;
+            zoneClient.CurrentAppID = ((Int32)appID == 16) ? ZoneClient.AppID.AoT : ZoneClient.AppID.AoM;
             zoneClient.CurrentUserState = userState;
 
             Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
@@ -338,6 +338,10 @@ namespace ESO_Zone_Server.Protocol
             if (client.zoneClient.IsOnLobby)
             {
                 client.zoneClient.Lobby.Users.Remove(client.zoneClient);
+            }
+            else if (client.zoneClient.CurrentProtocolState != ZoneClient.UserProtocolState.Online)
+            {
+                return;
             }
             else
             {

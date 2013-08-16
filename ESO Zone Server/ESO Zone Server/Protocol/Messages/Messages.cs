@@ -544,7 +544,7 @@ namespace ESO_Zone_Server.Protocol.Messages
                 parsedWatchMessage.Unused_0 = BitConverter.ToInt32(Data, 0);
                 parsedWatchMessage.Unknown_0 = BitConverter.ToInt32(Data, 4);
 
-                parsedWatchMessage.Username = System.Text.Encoding.ASCII.GetString(Data, 8, Data.Length - 0 - 8);
+                parsedWatchMessage.Username = System.Text.Encoding.ASCII.GetString(Data, 8, Data.Length - 1 - 8);
 
                 parsedWatchMessage.Unknown_1 = Data.Last();
                 return parsedWatchMessage;
@@ -1448,6 +1448,92 @@ namespace ESO_Zone_Server.Protocol.Messages
             }
         }
 
+        public class TalkResponseMessage : MessageServer
+        {
+            /// <summary>
+            /// The Username, max length 32, '\0' terminated
+            /// </summary>
+            public string Username;
+
+            /// <summary>
+            /// Message Length (Zip byte length)
+            /// </summary>
+            public Int16 MessageLength
+            {
+                get
+                {
+                    return (Int16)Message.Length;
+                }
+            }
+
+            /// <summary>
+            /// Sometimes it's 0, sometimes it isnt'
+            /// </summary>
+            //public Int16 Unkown_0 = 0;
+
+            /// <summary>
+            /// The compressed string
+            /// </summary>
+            public byte[] MessageZipped
+            {
+                get
+                {
+                    var memoryStream = new MemoryStream();
+                    using (ZOutputStream zOutputStream = new ZOutputStream(memoryStream, zlib.zlibConst.Z_BEST_COMPRESSION))
+                    {
+                        var stringBytes = Encoding.Unicode.GetBytes(Message);
+                        zOutputStream.Write(stringBytes, 0, stringBytes.Length);
+                    }
+                    return memoryStream.ToArray();
+                }
+            }
+
+            /// <summary>
+            /// Message unzipped.
+            /// </summary>
+            public string Message;
+
+            public TalkResponseMessage(InfoRecord InfoRecord, string Message)
+            {
+                this.Username = InfoRecord.Username.PadRight(32, '\0');
+                if (!Message.EndsWith("\0"))
+                {
+                    Message += '\0';
+                }
+                this.Message = Message;
+            }
+
+            public TalkResponseMessage(string Username, string Message)
+            {
+                this.Username = Username.PadRight(32, '\0');
+                if (!Message.EndsWith("\0"))
+                {
+                    Message += '\0';
+                }
+                this.Message = Message;
+            }
+
+            public override Int32 GetTypeID()
+            {
+                return (Int32)Messages.SIGNATURE_CHAT.TALK_RESPONSE;
+            }
+
+            public override byte[] GetBytes()
+            {
+                var stringZippedBytes = MessageZipped;
+                var memoryStream = new MemoryStream();
+                memoryStream.Write(BitConverter.GetBytes(GetTypeID()), 0, 4);
+                memoryStream.Write(BitConverter.GetBytes(32 + 2 + stringZippedBytes.Length + 1), 0, 4);
+                memoryStream.Write(Encoding.ASCII.GetBytes(Username), 0, 32);
+                memoryStream.Write(BitConverter.GetBytes(stringZippedBytes.Length + 1), 0, 2);
+                //memoryStream.Write(BitConverter.GetBytes(Unkown_0), 0, 2);
+                memoryStream.Write(stringZippedBytes, 0, stringZippedBytes.Length);
+                memoryStream.WriteByte(0);
+
+                return memoryStream.ToArray();
+            }
+        }
+
         public class TalkResponseIDMessage : MessageServer
         {
             /// <summary>
@@ -1529,7 +1615,7 @@ namespace ESO_Zone_Server.Protocol.Messages
                 memoryStream.Write(BitConverter.GetBytes(Unkown_0), 0, 2);
                 memoryStream.Write(stringZippedBytes, 0, stringZippedBytes.Length);
                 memoryStream.WriteByte(0);
-                
+
                 return memoryStream.ToArray();
             }
         }
