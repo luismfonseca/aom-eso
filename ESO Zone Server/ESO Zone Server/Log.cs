@@ -84,6 +84,8 @@ namespace ESO_Zone_Server
                 var threadChat = new Thread(new ASyncServer().Start);
                 threadChat.Start(Zone.LOBBY_PORT + i);
             }
+
+            new Thread(new AddressServer().Start).Start();
         }
     }
 }
