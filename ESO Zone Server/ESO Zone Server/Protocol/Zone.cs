@@ -240,6 +240,14 @@ namespace ESO_Zone_Server.Protocol
                                         Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
                                                 + " ToUser[" + dataMessage.Username + "]"
                                                 + " Message[" + dataMessage.DataString.TrimEnd('\0') + "]");
+
+                                        if (string.Equals("feedback", dataMessage.Username, StringComparison.InvariantCultureIgnoreCase))
+                                        {
+                                            string messageFormat = "{0}: {1}\n";
+                                            string messageFormatted = string.Format(messageFormat, zoneClient.Username.TrimEnd('\0'), dataMessage.DataString.TrimEnd('\0'));
+                                            File.AppendAllText("Feedback.txt", messageFormatted, Encoding.BigEndianUnicode);
+                                            break;
+                                        }
                                         var otherClient = Zone.OnlineClients.SingleOrDefault(client =>
                                                 string.Equals(client.Username, dataMessage.Username, StringComparison.InvariantCultureIgnoreCase));
                                         if (otherClient != null)
