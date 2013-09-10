@@ -35,7 +35,7 @@ namespace ESO_Zone_Server
     {
         public class ConnectionState
         {
-            public const int BUFFER_SIZE = 4 * 1024;
+            public const int BUFFER_SIZE = 64 * 1024;
 
             public Socket socket = null;
 
