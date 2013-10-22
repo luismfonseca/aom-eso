@@ -266,6 +266,7 @@ namespace ESOSniffer.Protocol
             /// <summary>
             /// ID for reason being denied. (?)
             /// Wrong passkey or username: 16842756
+            /// Chat server once replied: 16908292
             /// </summary>
             public Int32 Reason;
 

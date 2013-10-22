@@ -35,8 +35,9 @@ namespace ESO_Zone_Server
 
         public void Start(object port)
         {
-            IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.1.75");
-            IPAddress ipAddress = ipHostInfo.AddressList[0];
+            //IPHostEntry ipHostInfo = Dns.GetHostEntry("172.30.98.55");
+            var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
+            IPAddress ipAddress = ipHostInfo.AddressList[2];
             IPEndPoint localEndPoint = new IPEndPoint(ipAddress, (int)port);
 
             byte[] bytes = new Byte[1024];

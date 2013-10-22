@@ -237,8 +237,8 @@ namespace ESO_Zone_Server.Protocol
                             {
                                 case Messages.Messages.DataMessageType.String:
                                     {
-                                        Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
-                                                + " ToUser[" + dataMessage.Username + "]"
+                                        Log.Inform("Zone", "User [" + zoneClient.Username.TrimEnd('\0') + "]:"
+                                                + " ToUser[" + dataMessage.Username.TrimEnd('\0') + "]"
                                                 + " Message[" + dataMessage.DataString.TrimEnd('\0') + "]");
 
                                         if (string.Equals("feedback", dataMessage.Username, StringComparison.InvariantCultureIgnoreCase))
@@ -265,13 +265,14 @@ namespace ESO_Zone_Server.Protocol
 
                                         break;
                                     }
-                                case Messages.Messages.DataMessageType.Invitation:
-                                case Messages.Messages.DataMessageType.InvitationResponse:
-                                case Messages.Messages.DataMessageType.InvitationClientToJoinGame:
-                                case Messages.Messages.DataMessageType.InvitationTimeout: // not sure if needed
-                                case Messages.Messages.DataMessageType.InvitationTimeout2:
-                                case Messages.Messages.DataMessageType.ClientToJoinGame:
-                                case Messages.Messages.DataMessageType.ClientToJoinGameResponse:
+                                //case Messages.Messages.DataMessageType.Invitation:
+                                //case Messages.Messages.DataMessageType.InvitationResponse:
+                                //case Messages.Messages.DataMessageType.InvitationClientToJoinGame:
+                                //case Messages.Messages.DataMessageType.InvitationTimeout: // not sure if needed
+                                //case Messages.Messages.DataMessageType.InvitationTimeout2:
+                                //case Messages.Messages.DataMessageType.ClientToJoinGame:
+                                //case Messages.Messages.DataMessageType.ClientToJoinGameResponse:
+                                default:
                                     {
                                         var otherClient = Zone.OnlineClients.SingleOrDefault(client =>
                                                 string.Equals(client.Username, dataMessage.Username, StringComparison.InvariantCultureIgnoreCase));
@@ -285,6 +286,9 @@ namespace ESO_Zone_Server.Protocol
                                         }
                                         else
                                         {
+                                            Log.Warning("Zone", "User [" + zoneClient.Username.TrimEnd('\0') + "]:"
+                                                    + " ToUser[" + dataMessage.Username.TrimEnd('\0') + "]"
+                                                    + " UnkownMessage");
                                             // TODO
                                         }
                                         break;
@@ -309,7 +313,7 @@ namespace ESO_Zone_Server.Protocol
             zoneClient.CurrentAppID = ((Int32)appID == 16) ? ZoneClient.AppID.AoT : ZoneClient.AppID.AoM;
             zoneClient.CurrentUserState = userState;
 
-            Log.Inform("Zone", "User [" + zoneClient.Username + "]:"
+            Log.Inform("Zone", "User [" + zoneClient.Username.TrimEnd('\0') + "]:"
                     + " AppID[" + zoneClient.CurrentAppID + "]"
                     + " UserState[" + zoneClient.CurrentUserState + "]");
 
@@ -328,7 +332,7 @@ namespace ESO_Zone_Server.Protocol
             var userMessage = new Messages.Messages.UserMessage(zoneClient.Username, zoneClient.CurrentAppID, zoneClient.CurrentUserState);
             Zone.OnlineClients
                 .Where(client => string.Equals(client.Username, zoneClient.Username, StringComparison.OrdinalIgnoreCase) == false
-                                 && client.WatchList.Contains(zoneClient.Username, StringComparer.OrdinalIgnoreCase))
+                                 && client.WatchList.Contains(zoneClient.Username.TrimEnd('\0'), StringComparer.OrdinalIgnoreCase))
                     .ForEach(_ => _.packetsToBeSent.Add(
                             ZonePacket.FromMessage(userMessage, _)));
         }

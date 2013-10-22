@@ -19,9 +19,32 @@ namespace ESO_Zone_Server
     public class AddressServer
     {
         public void Start()
-        {
-            IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.1.75");
-            IPAddress ipAddress = ipHostInfo.AddressList[0];
+        {/*
+            var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
+            IPAddress ipAddress = ipHostInfo.AddressList[1];
+            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 2300);
+            UdpClient udpClient = new UdpClient(localEndPoint);
+
+            Log.Inform("AddressServer", "Started and is working...");
+
+            while (true)
+            {
+                IPEndPoint sender = new IPEndPoint(IPAddress.Any, 0);
+                byte[] data = udpClient.Receive(ref sender);
+
+                MemoryStream reply = new MemoryStream();
+                reply.Write(new byte[] { 0x88, 0x01 }, 0, 2); // signature
+                reply.WriteByte(data[2]); // seq
+                reply.WriteByte(data[3]); // seq
+                reply.Write(data, 4, 4); // not sure
+                reply.Write(new byte[] { 0x00, 0x13 }, 0, 2);
+
+                udpClient.Send(reply.ToArray(), 10, sender);
+                Log.Inform("AddressServer", "Got IP request ");
+            }
+            /**/
+            var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
+            IPAddress ipAddress = ipHostInfo.AddressList[2];
             IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 2300);
             UdpClient udpClient = new UdpClient(localEndPoint);
 
@@ -52,7 +75,7 @@ namespace ESO_Zone_Server
                         udpClient.Send(data, data.Length, sender);
                         continue;
                 }
-            }
+            }/**/
         }
     }
 }

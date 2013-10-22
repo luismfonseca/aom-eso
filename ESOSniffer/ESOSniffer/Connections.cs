@@ -56,7 +56,7 @@ namespace ESOSniffer
             // Establish the local endpoint for the socket.
             IPHostEntry ipHostInfo = Dns.GetHostEntry("192.168.1.88");
             IPAddress ipAddress = ipHostInfo.AddressList[0]; //1
-            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 28805);
+            IPEndPoint localEndPoint = new IPEndPoint(ipAddress, 28801);
             logHandler("[Connections] Starting client listenner at " + localEndPoint.Address + ": " + localEndPoint.Port);
 
             // Create a TCP/IP socket.
@@ -138,16 +138,13 @@ namespace ESOSniffer
 
             Array.Resize(ref state.buffer, bytesRead);
             //File.WriteAllBytes("" + requestGotCount++ + "_client", state.buffer);
-            var packet = (ZonePacket)flowAnalyzer.ClientMessages.Last();
-            File.WriteAllBytes("" + packet.SequenceID.ToString("X") + "_client", packet.Data);
-            File.WriteAllBytes("" + packet.SequenceID.ToString("X") + "_client_raw", state.buffer);
             // Foward message to message1.aom.eso.com server
             if (state.esoSocket == null)
             {
                 logHandler("[Connections] Connecting to message1.aom.eso.com...");
                 IPHostEntry ipHostInfo = await Dns.GetHostEntryAsync("message1.aom.eso.com");//message1.aom.eso.com
                 IPAddress ipAddress = ipHostInfo.AddressList[0];//0
-                IPEndPoint remoteEP = new IPEndPoint(ipAddress, 28805);
+                IPEndPoint remoteEP = new IPEndPoint(ipAddress, 28801);
 
                 // Create a TCP/IP socket.
                 Socket client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

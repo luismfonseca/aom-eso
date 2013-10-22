@@ -30,7 +30,7 @@ namespace ESO_Zone_Server
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] arguments)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

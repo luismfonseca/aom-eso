@@ -85,6 +85,12 @@ namespace ESOSniffer
             xorBytes(ref rawData, secureKey);
 
             var parsedPacket = new ZonePacket();
+            if (rawData.Length < 16)
+            {
+                throw new NotEnoughBytesException();
+                // not enough bytes, even for the header
+            }
+
             parsedPacket.Signature = BitConverter.ToInt32(rawData, 0);
             parsedPacket.Size = BitConverter.ToInt32(rawData, 4);
             parsedPacket.SequenceID = BitConverter.ToInt32(rawData, 8);
